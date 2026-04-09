@@ -37,6 +37,50 @@ def slug_to_title():
 def add_project_entry():
     data = request.get_json()
     # TODO: Validate input and store in `project_registry`
+    if not data or "type" not in data or "name" not in data:
+        return "", 400
+    
+    #type is not project or resource
+    if data["type"] not in ["project", "resource"]:
+        return "", 400
+    
+    #name is not unique
+    if data["name"] in project_registry:
+        print("Duplicate project exists!")
+        return "", 400
+    
+    #check for projects
+    if data["type"] == "project":
+        if "requiredResources" not in data:
+            return "", 400
+        
+        seen = set()
+
+        for r in data["requiredResources"]:
+            if r["name"] not in seen:
+                seen.add(r["name"])
+                continue
+            print("Duplicate resource found!")
+            return "", 400
+
+    #check for resources
+    elif data["type"] == "resource":
+        if "buildTime" not in data:
+            print("Buildtime not in data!")
+            return "", 400
+        
+        #0 buildtime for resource
+        if data["buildTime"] < 0:
+            print("Buildtime less than 0!!")
+            return "", 400
+    
+    #project has duplicate resource names in requiredResources
+    # if data["type"] == "resource" and data["resources"] in requiredResources:
+    #     return "", 400
+    
+    print(data)
+    project_registry[data["name"]] = data
+    print(project_registry)
     return "", 200
 
 
