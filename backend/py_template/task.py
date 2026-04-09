@@ -74,10 +74,6 @@ def add_project_entry():
             print("Buildtime less than 0!!")
             return "", 400
     
-    #project has duplicate resource names in requiredResources
-    # if data["type"] == "resource" and data["resources"] in requiredResources:
-    #     return "", 400
-    
     print(data)
     project_registry[data["name"]] = data
     print(project_registry)
@@ -89,7 +85,67 @@ def add_project_entry():
 def get_summary():
     name = request.args.get("name")
     # TODO: Lookup entry and compute total build time and base resources
-    return "", 200
+    
+    #validate input (check if exists)
+    if not name or name not in project_registry:
+        return "", 400
+
+    #lookup valid project
+    entry = project_registry[name]
+
+    #check if project, not a resource
+    if entry["type"] != "project":
+        return "", 400
+
+    #way to keep track of resources
+    resourceCounts = {}
+
+    #recursively look up values for the entry if it is a project and add the buildtime, else if it is a resource, add the buildtime and end
+    #for projects only
+    def recurse(currentName, multiplier):
+        if currentName not in project_registry:
+            return -1
+        
+        current = project_registry[currentName]
+
+        #what is the base case? resource
+        if current["type"] == "resource":
+            currBuildTime = current["buildTime"]
+
+            if currentName not in resourceCounts:
+                resourceCounts[currentName] = 0
+            resourceCounts[currentName] += multiplier
+
+            return currBuildTime * multiplier
+
+        #transition case = project
+        total = 0
+
+        for dependency in current["requiredResources"]:
+            dependencyName = dependency["name"]
+            quantity = dependency["quantity"]
+
+            result = recurse(dependencyName, multiplier * quantity)
+
+            if result == -1:
+                return -1
+            
+            total += result
+        
+        return total
+
+    totalTime = recurse(name, 1)
+
+    if totalTime == -1:
+        return "", 400
+
+    #formatting answer
+    resourcesList = []
+    for rName, qty in resourceCounts.items():
+        resourcesList.append({"name":rName, "quantity":qty})
+    
+    #returns full list of underlying base resources and total build time
+    return {"name":name, "buildTime":totalTime, "resources":resourcesList}, 200
 
 
 # ==== DO NOT CHANGE ==========================================================
